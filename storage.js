@@ -215,8 +215,10 @@ export function weeksForMonth(year, month) {
   const offset = (8 - first.getDay()) % 7;
   const d = new Date(year, month - 1, 1 + offset);
   const weeks = [];
+  const pad2 = (n) => String(n).padStart(2, '0');
   while (d.getFullYear() === year && d.getMonth() === month - 1) {
-    const iso = d.toISOString().slice(0, 10);
+    // ISO en hora local (no UTC) para no correr el día en zonas como AR (UTC-3).
+    const iso = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
     weeks.push({ monday: iso, edited: false });
     d.setDate(d.getDate() + 7);
   }

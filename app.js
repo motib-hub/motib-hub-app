@@ -23,7 +23,10 @@ function mondayOf(date = new Date()) {
   d.setHours(0, 0, 0, 0);
   return d;
 }
-function fmtISO(d) { return d.toISOString().slice(0, 10); }
+// Fechas SIEMPRE en hora local (no UTC), para no correr el día en zonas como AR (UTC-3).
+function pad2(n) { return String(n).padStart(2, '0'); }
+function fmtISO(d) { return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; }
+function parseISO(iso) { return new Date(iso + 'T00:00:00'); }
 function fmtRange(monday) {
   const friday = new Date(monday); friday.setDate(monday.getDate() + 4);
   const opts = { day: 'numeric', month: 'short' };
@@ -166,7 +169,7 @@ function getCategories(block) {
 // Lunes ISO de "hoy"
 function todaysMondayIso() {
   const d = mondayOf(new Date());
-  return d.toISOString().slice(0, 10);
+  return fmtISO(d);
 }
 // ¿Es la última semana del mes? (el lunes dado es el último lunes que cae en su mes)
 function isLastWeekOfMonth(mondayIso) {
@@ -183,7 +186,7 @@ function isPenultimateWeekOfMonth(mondayIso) {
 function currentWeekIndexOfMonth() {
   const monday = mondayOf(new Date());
   const weeks = weeksForMonth(monday.getFullYear(), monday.getMonth() + 1);
-  const iso = monday.toISOString().slice(0, 10);
+  const iso = fmtISO(monday);
   const idx = weeks.findIndex(w => w.monday === iso);
   return idx >= 0 ? idx + 1 : weeks.length; // si no encontrado, asumir última
 }
@@ -209,7 +212,7 @@ const $sheetBody = document.getElementById('sheet-body');
 // SEMANA
 // ============================================================
 function renderWeekHeader() {
-  const monday = new Date(state.weekStart);
+  const monday = parseISO(state.weekStart);
   $weekRange.textContent = `Semana del ${fmtRange(monday)}`;
   const total = state.blocks.length;
   const done = state.blocks.filter(b => b.status === 'hecho').length;
@@ -1231,7 +1234,7 @@ $urgentForm.addEventListener('submit', async (e) => {
 document.getElementById('prev-week').addEventListener('click', () => shiftWeek(-7));
 document.getElementById('next-week').addEventListener('click', () => shiftWeek(+7));
 async function shiftWeek(delta) {
-  const d = new Date(state.weekStart);
+  const d = parseISO(state.weekStart);
   d.setDate(d.getDate() + delta);
   state.weekStart = fmtISO(d);
   await materializeRecurring(state.weekStart);  // si está vacía, crea recurrentes
