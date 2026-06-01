@@ -2,18 +2,32 @@
 
 App web para que ella cargue su semana y vos la veas en tiempo real, sin pasar por Notion ni WhatsApp.
 
-**Stack:** HTML + CSS + JS vanilla · Storage: **Supabase** (Postgres). Datos compartidos en tiempo (casi) real entre Ailén y Tomi.
+**Stack:** HTML + CSS + JS vanilla · Storage: **Supabase** (Postgres) · Acceso por **contraseña del equipo** (Supabase Auth) · Datos compartidos en tiempo (casi) real entre Ailén y Tomi.
 
 ---
 
-## ⚠️ Único paso pendiente para que funcione
+## Seguridad — cómo funciona el acceso
 
-El proyecto Supabase ya está conectado (`storage.js` apunta a él). Falta correr **una** migración que agrega dos columnas:
+Dos capas:
 
-1. Supabase → **SQL Editor** → New query.
-2. Pegar el contenido de `supabase-migration-001.sql` → **Run**.
+1. **Puerta de acceso (contraseña del equipo):** al abrir el link, pide una contraseña. La tipea la persona; **nunca está en el código**. Eso genera una sesión real de Supabase Auth contra la cuenta compartida (`motibhub@gmail.com`). Las policies de la base no solo exigen sesión autenticada: exigen que sea **esa cuenta puntual** → aunque alguien se registre con otro mail, no accede a nada. Sin la contraseña, ni el código ni la anon key abren nada.
+2. **Selector de usuario (Ailén / Tomi):** después de entrar, define rol y permisos (Ailén edita su semana; Tomi vista de dueño). El PIN de Tomi es una barrera blanda extra.
 
-Es idempotente (se puede correr de nuevo sin romper nada). Hasta que se corra, la app va a tirar error de "column does not exist".
+"Salir (bloquear)" en el menú de usuario cierra la sesión del equipo y vuelve a pedir la contraseña — útil en dispositivos compartidos.
+
+---
+
+## ⚠️ Pasos para dejarla LIVE y segura (orden importa)
+
+1. **Columnas** — SQL Editor → `supabase-migration-001.sql` → Run. *(hecho)*
+2. **Cuenta de acceso** — `motibhub@gmail.com`, confirmada, con la contraseña del equipo. *(hecho)*
+3. **Blindaje por cuenta** — SQL Editor → `supabase-migration-002-auth.sql` → Run. Restringe el acceso a esa cuenta puntual (no a cualquier registrado). **Crítico: sin esto, los signups abiertos son un agujero.**
+4. **(Recomendado) Cerrar registros** — Dashboard → Authentication → Sign In / Providers → Email → desactivar "Allow new users to sign up". Defensa extra.
+5. **Publicar** — recién con el paso 3 hecho, se publica el link público.
+
+Si cambiás el email de la cuenta: actualizá `SHARED_EMAIL` en `storage.js` Y `team_email` en la migración 002, y volvé a correrla.
+
+Todas las migraciones son idempotentes.
 
 ---
 

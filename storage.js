@@ -20,7 +20,7 @@ const LS = {
 // en el código. Eso es lo que hace seguro el modelo: sin esa contraseña, la anon key
 // (que sí viaja al navegador) no abre nada, porque las policies de la base exigen
 // sesión autenticada. Cualquiera con la contraseña entra; con solo el link, no.
-const SHARED_EMAIL = 'acceso@motibhub.com.ar';
+const SHARED_EMAIL = 'motibhub@gmail.com';
 
 // ============================================================
 // Sesión / Auth (Supabase Auth · grant de password)
