@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#EFEEEE" />
+  <title>Motib HUB · Mi semana</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Red+Hat+Display:wght@300;400;500;700;900&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- Puerta de acceso (contraseña del equipo) -->
+  <div class="gate" id="gate" hidden>
+    <form class="gate-card" id="gate-form">
+      <img src="assets/motib-logo.png" alt="Motib HUB" class="gate-logo" />
+      <h1>Motib HUB</h1>
+      <p class="gate-sub">Ingresá la contraseña de acceso del equipo.</p>
+      <input type="password" id="gate-input" placeholder="Contraseña de acceso" required autocomplete="current-password" />
+      <div class="gate-error" id="gate-error" hidden></div>
+      <button type="submit" class="primary" id="gate-submit">Entrar</button>
+    </form>
+  </div>
+
+  <!-- Pantalla de onboarding (¿Quién sos?) -->
+  <div class="onboarding" id="onboarding" hidden>
+    <div class="onboarding-card">
+      <img src="assets/motib-logo.png" alt="Motib HUB" class="onboarding-logo" />
+      <h1>¿Quién está usando?</h1>
+      <div class="onboarding-options">
+        <button class="user-option" data-user="ailen">
+          <span class="user-avatar" style="background:#FF7F11">A</span>
+          <span class="user-name">Ailén</span>
+        </button>
+        <button class="user-option" data-user="tomi">
+          <span class="user-avatar" style="background:#443850">T</span>
+          <span class="user-name">Tomi</span>
+        </button>
+      </div>
+
+      <!-- Prompt de contraseña para Tomi -->
+      <form class="password-prompt" id="password-prompt" hidden>
+        <div class="pp-header">
+          <button type="button" class="ghost" id="pp-back">← Volver</button>
+          <span class="pp-title" id="pp-title">Contraseña</span>
+        </div>
+        <p class="pp-sub" id="pp-sub">—</p>
+        <input type="password" id="pp-input" placeholder="Contraseña" required autocomplete="current-password" />
+        <input type="password" id="pp-confirm" placeholder="Repetir contraseña" autocomplete="new-password" hidden />
+        <div class="pp-error" id="pp-error" hidden></div>
+        <button type="submit" class="primary" id="pp-submit">Entrar</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <img src="assets/motib-logo.png" alt="Motib HUB" class="brand-logo" />
+      </div>
+      <nav class="section-tabs" role="tablist">
+        <button class="section-btn is-active" data-section="semana">Semana</button>
+        <button class="section-btn" data-section="calendarios">Calendarios</button>
+        <button class="section-btn" data-section="clientes">Clientes</button>
+      </nav>
+      <div class="topbar-right">
+        <button class="alerts-bell" id="alerts-bell" aria-label="Alertas">
+          <span class="bell-icon">🔔</span>
+          <span class="bell-badge" id="alerts-count" hidden>0</span>
+        </button>
+        <div class="user-menu">
+          <button class="user-chip" id="user-chip" aria-label="Usuario actual">
+            <span class="user-avatar-sm" id="user-avatar-sm">?</span>
+            <span class="user-name-sm" id="user-name-sm">—</span>
+          </button>
+          <div class="user-dropdown" id="user-dropdown" hidden>
+            <button class="dropdown-item" id="switch-user">Cambiar usuario</button>
+            <button class="dropdown-item" id="lock-app">Salir (bloquear)</button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Centro de alertas (panel desplegable) -->
+    <div class="alerts-panel" id="alerts-panel" hidden>
+      <div class="alerts-header">
+        <strong>Alertas</strong>
+        <button class="ghost" id="alerts-close">Cerrar</button>
+      </div>
+      <div class="alerts-body" id="alerts-body"></div>
+    </div>
+
+    <!-- ============ SECCIÓN: SEMANA ============ -->
+    <section class="screen is-active" id="screen-semana">
+      <div class="week-strip">
+        <button class="nav-btn" id="prev-week" aria-label="Semana anterior">‹</button>
+        <div class="week-label">
+          <span id="week-range">—</span>
+          <small id="week-summary">—</small>
+        </div>
+        <button class="nav-btn" id="next-week" aria-label="Semana siguiente">›</button>
+      </div>
+
+      <nav class="day-tabs" id="day-tabs" aria-label="Días de la semana"></nav>
+
+      <main class="content" id="content"></main>
+
+      <button class="fab" id="add-urgent" aria-label="Registrar urgente">+ Urgente</button>
+
+      <footer class="bottombar" id="bottombar">
+        <button class="ghost" id="close-day">Cerrar el día</button>
+      </footer>
+    </section>
+
+    <!-- ============ SECCIÓN: CALENDARIOS ============ -->
+    <section class="screen" id="screen-calendarios">
+      <div class="cal-screen-header">
+        <h2>Calendarios de contenido</h2>
+        <span class="cal-screen-sub">Mes anterior · actual · siguiente</span>
+      </div>
+      <main class="content" id="calendars-content"></main>
+    </section>
+
+    <!-- ============ SECCIÓN: CLIENTES ============ -->
+    <section class="screen" id="screen-clientes">
+      <main class="content" id="clients-content"></main>
+    </section>
+  </div>
+
+
+  <!-- ============ Modal: editar / agregar bloque ============ -->
+  <dialog class="modal" id="block-modal">
+    <form method="dialog" class="modal-card">
+      <h3 id="block-modal-title">Bloque</h3>
+
+      <div class="slot-picker">
+        <label class="slot-picker-inicio">
+          <span>Inicio</span>
+          <select id="block-start-select"></select>
+        </label>
+        <label class="slot-picker-dur">
+          <span>Duración</span>
+          <div class="dur-chips" id="block-dur-chips">
+            <button type="button" data-dur="30">30 min</button>
+            <button type="button" data-dur="60" class="active">1 h</button>
+            <button type="button" data-dur="90">1 h 30</button>
+            <button type="button" data-dur="120">2 h</button>
+            <button type="button" data-dur="180">3 h</button>
+          </div>
+        </label>
+        <div class="slot-preview" id="slot-preview">→ 8:00 – 9:00</div>
+        <div class="slot-conflict" id="slot-conflict" hidden></div>
+      </div>
+
+      <label>
+        <span>Cliente</span>
+        <select name="client" id="block-client-select">
+          <option value="">— Sin cliente —</option>
+        </select>
+      </label>
+
+      <label>
+        <span>Categoría <small style="color:var(--text-mute)">— podés elegir varias</small></span>
+        <div class="category-chips" id="category-chips"></div>
+      </label>
+
+      <label>
+        <span>Detalle <small style="color:var(--text-mute)">— qué específicamente</small></span>
+        <input type="text" name="task" placeholder="Ej: Promo Black Friday 30s" required autocomplete="off" />
+        <div class="task-suggestions" id="task-suggestions"></div>
+      </label>
+
+      <label>
+        <span>Nota (opcional)</span>
+        <textarea name="note" rows="2" placeholder="Contexto: 'cliente no mandó material', 'subido a Drive martes'…"></textarea>
+      </label>
+
+      <div class="modal-actions">
+        <button type="button" class="danger" id="block-delete" hidden>Eliminar</button>
+        <button type="button" class="ghost" id="block-cancel">Cancelar</button>
+        <button type="submit" class="primary">Guardar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- ============ Modal: postergar bloque ============ -->
+  <dialog class="modal" id="postpone-modal">
+    <div class="modal-card postpone-card">
+      <h3>Postergar bloque</h3>
+      <p class="text dim" id="postpone-info" style="margin:0">—</p>
+
+      <div class="postpone-modes" id="postpone-modes">
+        <button type="button" class="pm-btn" data-mode="later-today">
+          <strong>Más tarde hoy</strong>
+          <small>Mover a otro horario del día</small>
+        </button>
+        <button type="button" class="pm-btn" data-mode="other-day">
+          <strong>Otro día</strong>
+          <small>Mover a otro día de la semana</small>
+        </button>
+        <button type="button" class="pm-btn" data-mode="no-date">
+          <strong>Sin fecha definida</strong>
+          <small>Queda marcado postergado en su lugar</small>
+        </button>
+      </div>
+
+      <div class="postpone-details" id="postpone-details"></div>
+
+      <div class="modal-actions postpone-actions">
+        <button type="button" class="ghost" id="postpone-to-pending">← Pendiente</button>
+        <button type="button" class="ghost" id="postpone-to-done">← Hecho</button>
+        <button type="button" class="primary" id="postpone-confirm" disabled>Confirmar postergación</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- ============ Modal: urgente ============ -->
+  <dialog class="modal" id="urgent-modal">
+    <form method="dialog" class="modal-card">
+      <h3>Urgente que entró ahora</h3>
+      <label>
+        <span>Cliente</span>
+        <select name="client" id="urgent-client-select" required>
+          <option value="">— Elegir —</option>
+        </select>
+      </label>
+      <label>
+        <span>¿Qué pidió?</span>
+        <textarea name="description" rows="2" required placeholder="Necesita un story para hoy, cambio de copy…"></textarea>
+      </label>
+      <label>
+        <span>Tiempo estimado (minutos)</span>
+        <input type="number" name="estimated_minutes" min="5" step="5" value="30" />
+      </label>
+      <label class="row">
+        <input type="checkbox" name="displaces" />
+        <span>Desplaza algún bloque planificado</span>
+      </label>
+      <div class="modal-actions">
+        <button type="button" class="ghost" id="urgent-cancel">Cancelar</button>
+        <button type="submit" class="primary">Registrar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- ============ Side-sheet: ficha de cliente ============ -->
+  <aside class="sheet" id="client-sheet" aria-hidden="true">
+    <div class="sheet-backdrop" data-close></div>
+    <div class="sheet-panel">
+      <header class="sheet-header">
+        <h2 id="sheet-title">Cliente</h2>
+        <button class="ghost" data-close>Cerrar</button>
+      </header>
+      <div class="sheet-body" id="sheet-body"></div>
+    </div>
+  </aside>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
