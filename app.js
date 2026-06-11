@@ -125,8 +125,40 @@ const state = {
   clients: [],
   projects: [],
   calendars: [],
+  activity: [],          // registro de actividad de la semana (sección Resultados)
   calYear: new Date().getFullYear(),
 };
+
+// ============================================================
+// Registro de actividad (historial) — se escribe en cada acción explícita.
+// Fire-and-forget: no bloquea ni rompe la UI si falla.
+// ============================================================
+function logAct(action, block, summary, detail = {}) {
+  store.logActivity({
+    actor: state.user?.id || null,
+    action,
+    entity: 'block',
+    entity_id: block?.id || null,
+    week_start: block?.week_start || state.weekStart,
+    day: block?.day || null,
+    summary,
+    detail,
+  });
+}
+
+// Describe los cambios entre dos versiones de un bloque (para el log de edición).
+function describeBlockChanges(prev, next) {
+  const changes = [];
+  const detail = {};
+  if (prev.task !== next.task) { changes.push(`tarea → "${next.task}"`); detail.task = { from: prev.task, to: next.task }; }
+  if (prev.time_slot !== next.time_slot) { changes.push(`horario ${prev.time_slot} → ${next.time_slot}`); detail.time_slot = { from: prev.time_slot, to: next.time_slot }; }
+  if (prev.day !== next.day) { changes.push(`${DAY_LABELS[prev.day] || prev.day} → ${DAY_LABELS[next.day] || next.day}`); detail.day = { from: prev.day, to: next.day }; }
+  if ((prev.client || '') !== (next.client || '')) { changes.push(`cliente → ${next.client || '—'}`); detail.client = { from: prev.client, to: next.client }; }
+  if ((prev.note || '') !== (next.note || '')) { changes.push('nota'); detail.note = { from: prev.note, to: next.note }; }
+  const pc = (prev.categories || []).join(','), nc = (next.categories || []).join(',');
+  if (pc !== nc) { changes.push('categorías'); detail.categories = { from: prev.categories, to: next.categories }; }
+  return { changes, detail };
+}
 
 // Helpers de permisos
 function can(action) {
@@ -352,6 +384,9 @@ function attachBlockHandlers() {
       const next = STATUS_CYCLE[(STATUS_CYCLE.indexOf(cur) + 1) % STATUS_CYCLE.length];
       block.status = next;
       await store.upsertBlock(block);
+      // Si pasa a postergado, el log lo hace la confirmación de postergación
+      // (con motivo). Para hecho/pendiente registramos acá.
+      if (next !== 'postergado') logAct('status', block, `Marcó "${block.task}" como ${STATUS_LABEL[next]}`, { status: next });
       renderSemana();
       // Si pasó a "postergado", abrir popup para reprogramar
       if (next === 'postergado') openPostponeModal(block);
@@ -678,7 +713,7 @@ function switchSection(section) {
   if (section === 'semana') renderSemana();
   if (section === 'clientes') renderClientes();
   if (section === 'calendarios') renderCalendarios();
-  if (section === 'resultados') renderResultados();
+  if (section === 'resultados') openResultados();
 }
 
 document.getElementById('alerts-bell').addEventListener('click', () => {
@@ -865,6 +900,14 @@ const CAT_COLORS = {
   reunion: '#95CA9A', investigacion: '#e0a458', gestion: '#5b8a8a', pausa: '#c8c5bf', otro: '#9a9aa3',
 };
 
+// Iconos por tipo de acción para el feed de actividad.
+const ACT_ICON = { create: '➕', edit: '✏️', status: '✅', postpone: '⏸️', delete: '🗑️' };
+function fmtActTime(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleString('es-AR', { weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+}
+
 function fmtDur(min) {
   min = Math.round(min);
   const h = Math.floor(min / 60), m = min % 60;
@@ -952,6 +995,41 @@ function renderResultados() {
       </div>
     </div>`;
 
+  // Seguimiento: anticipación (días ya armados) + actividad de la semana.
+  const daysPlanned = DAYS.filter(d => state.blocks.some(b => b.day === d && !getCategories(b).includes('pausa'))).length;
+  const lastAct = state.activity[0];
+  const seguimiento = `
+    <div class="res-card res-track">
+      <h3>Seguimiento</h3>
+      <div class="res-track-row">
+        <span class="res-track-k">Días planificados <small>(meta: 2-3 adelantados)</small></span>
+        <span class="res-track-v ${daysPlanned >= 3 ? 'ok' : daysPlanned >= 2 ? 'warn' : 'bad'}">${daysPlanned}/5</span>
+      </div>
+      <div class="res-track-row">
+        <span class="res-track-k">Ajustes esta semana</span>
+        <span class="res-track-v">${state.activity.length}</span>
+      </div>
+      <div class="res-track-row">
+        <span class="res-track-k">Última actividad</span>
+        <span class="res-track-v small">${lastAct ? fmtActTime(lastAct.created_at) : '—'}</span>
+      </div>
+    </div>`;
+
+  const actividad = `
+    <div class="res-card">
+      <h3>Actividad reciente</h3>
+      ${state.activity.length === 0
+        ? `<p class="res-empty-inline">Sin movimientos registrados en esta semana.</p>`
+        : `<ul class="res-feed">${state.activity.map(a => `
+            <li class="res-feed-item">
+              <span class="res-feed-icon">${ACT_ICON[a.action] || '•'}</span>
+              <div class="res-feed-body">
+                <span class="res-feed-summary">${escapeHtml(a.summary || '')}</span>
+                <span class="res-feed-meta">${escapeHtml(USERS[a.actor]?.name || a.actor || '—')} · ${fmtActTime(a.created_at)}</span>
+              </div>
+            </li>`).join('')}</ul>`}
+    </div>`;
+
   const estado = `
     <div class="res-card">
       <h3>Estado de los bloques</h3>
@@ -1007,7 +1085,13 @@ function renderResultados() {
       </div>
     </div>`;
 
-  $resultadosContent.innerHTML = hero + estado + motivos + porCliente + porTipo + urgentes;
+  $resultadosContent.innerHTML = hero + seguimiento + estado + motivos + porCliente + porTipo + urgentes + actividad;
+}
+
+// Carga la actividad de la semana y renderiza. Se usa al abrir la sección y al navegar.
+async function openResultados() {
+  state.activity = await store.listActivity({ weekStart: state.weekStart, limit: 50 });
+  renderResultados();
 }
 
 async function shiftWeekResultados(delta) {
@@ -1015,7 +1099,7 @@ async function shiftWeekResultados(delta) {
   d.setDate(d.getDate() + delta);
   state.weekStart = fmtISO(d);
   await loadWeek();
-  renderResultados();
+  await openResultados();
 }
 document.getElementById('res-prev-week').addEventListener('click', () => shiftWeekResultados(-7));
 document.getElementById('res-next-week').addEventListener('click', () => shiftWeekResultados(+7));
@@ -1204,6 +1288,16 @@ $postponeConfirm.addEventListener('click', async () => {
     await store.upsertBlock(b);
   }
 
+  // Registro de actividad: postergación con modo + motivo.
+  const modeLabel = {
+    'no-date': 'sin fecha',
+    'later-today': 'más tarde hoy',
+    'other-day': `a ${DAY_LABELS[postponePayload.newDay]}`,
+  }[postponePayload.type];
+  const reasonLabel = POSTPONE_REASONS[postponeReason] || postponeReason;
+  logAct('postpone', b, `Postergó "${b.task}" (${modeLabel}) · ${reasonLabel}${b.postpone_note ? ' — ' + b.postpone_note : ''}`,
+    { mode: postponePayload.type, reason: postponeReason, note: b.postpone_note });
+
   // Recargar bloques desde storage (vía loadWeek para pasar por el saneo de duplicados)
   await loadWeek();
   closePostponeModal();
@@ -1237,6 +1331,7 @@ async function setBlockStatusAndClose(newStatus) {
     postponeBlock.postpone_reason = null;
     postponeBlock.postpone_note = null;
     await store.upsertBlock(postponeBlock);
+    logAct('status', postponeBlock, `Marcó "${postponeBlock.task}" como ${STATUS_LABEL[newStatus]}`, { status: newStatus });
   }
   closePostponeModal();
   renderSemana();
@@ -1399,7 +1494,9 @@ document.getElementById('block-cancel').addEventListener('click', () => $blockMo
 $blockDelete.addEventListener('click', async () => {
   if (!editingBlockId) return;
   if (!confirm('¿Eliminar este bloque?')) return;
+  const blk = state.blocks.find(b => b.id === editingBlockId);
   await store.deleteBlock(editingBlockId);
+  if (blk) logAct('delete', blk, `Eliminó "${blk.task}" · ${DAY_LABELS[blk.day]} ${blk.time_slot}`);
   state.blocks = state.blocks.filter(b => b.id !== editingBlockId);
   $blockModal.close();
   renderSemana();
@@ -1426,9 +1523,19 @@ $blockForm.addEventListener('submit', async (e) => {
     note: $blockForm.note.value.trim(),
     status: state.blocks.find(b => b.id === editingBlockId)?.status || 'pendiente',
   };
+  const prev = editingBlockId ? state.blocks.find(b => b.id === editingBlockId) : null;
   const saved = await store.upsertBlock(data);
   const idx = state.blocks.findIndex(b => b.id === saved.id);
   if (idx >= 0) state.blocks[idx] = saved; else state.blocks.push(saved);
+
+  // Registro de actividad: alta o edición (con el detalle de qué cambió).
+  if (!prev) {
+    logAct('create', saved, `Creó "${saved.task}" · ${DAY_LABELS[saved.day]} ${saved.time_slot}`);
+  } else {
+    const { changes, detail } = describeBlockChanges(prev, saved);
+    if (changes.length) logAct('edit', saved, `Editó "${saved.task}": ${changes.join(' · ')}`, detail);
+  }
+
   $blockModal.close();
   renderSemana();
 });
@@ -1597,7 +1704,7 @@ function rerenderCurrent() {
   if (state.section === 'semana') renderSemana();
   else if (state.section === 'clientes') renderClientes();
   else if (state.section === 'calendarios') renderCalendarios();
-  else if (state.section === 'resultados') renderResultados();
+  else if (state.section === 'resultados') openResultados();
   renderAlertsBadge();
 }
 

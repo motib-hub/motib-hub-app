@@ -141,6 +141,7 @@ const COLS = {
   projects: ['client_id', 'name', 'description', 'status', 'current_week', 'weeks'],
   recurring_blocks: ['day', 'time_slot', 'client', 'task', 'active'],
   calendars: ['client_id', 'year', 'month', 'status', 'weeks'],
+  activity_log: ['actor', 'action', 'entity', 'entity_id', 'week_start', 'day', 'summary', 'detail'],
 };
 function pick(table, obj) {
   const out = {};
@@ -268,6 +269,25 @@ export const store = {
   },
   async deleteBlock(id) {
     await sbDelete('blocks', `id=${eq(id)}`);
+  },
+
+  // --- Activity log (historial) ---
+  // Fire-and-forget: el registro NUNCA debe romper la acción del usuario.
+  async logActivity(entry) {
+    try {
+      await sbInsert('activity_log', pick('activity_log', entry));
+    } catch (e) {
+      console.warn('[motib] no pude registrar actividad:', e?.message || e);
+    }
+  },
+  async listActivity({ weekStart = null, limit = 40 } = {}) {
+    const f = weekStart ? `week_start=${eq(weekStart)}&` : '';
+    try {
+      return await sbGet(`activity_log?${f}select=*&order=created_at.desc&limit=${limit}`);
+    } catch (e) {
+      console.warn('[motib] no pude leer actividad:', e?.message || e);
+      return [];
+    }
   },
 
   // --- Urgents ---

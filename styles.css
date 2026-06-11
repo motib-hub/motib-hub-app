@@ -1083,6 +1083,35 @@ button.danger { color: var(--bad); border-color: var(--bad); background: var(--b
 }
 .res-note-task { display: block; font-weight: 700; color: var(--text); margin-bottom: 1px; }
 
+/* Seguimiento (anticipación + actividad) */
+.res-track-row {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--border);
+}
+.res-track-row:last-child { border-bottom: 0; }
+.res-track-k { font-size: 13px; color: var(--text-dim); }
+.res-track-k small { opacity: 0.75; }
+.res-track-v {
+  font-family: var(--font-display); font-weight: 800; font-size: 18px; color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.res-track-v.small { font-size: 13px; font-weight: 700; color: var(--text-dim); }
+.res-track-v.ok { color: var(--ok-text); }
+.res-track-v.warn { color: var(--warn-text); }
+.res-track-v.bad { color: var(--bad-text); }
+
+/* Feed de actividad */
+.res-feed { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.res-feed-item {
+  display: flex; gap: 10px; padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.res-feed-item:last-child { border-bottom: 0; }
+.res-feed-icon { flex: 0 0 auto; font-size: 15px; line-height: 1.4; }
+.res-feed-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.res-feed-summary { font-size: 13px; color: var(--text); }
+.res-feed-meta { font-size: 11px; color: var(--text-dim); }
+
 /* Urgentes */
 .res-urg-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; text-align: center; }
 .res-urg-grid > div {
