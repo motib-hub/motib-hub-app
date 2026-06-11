@@ -640,14 +640,19 @@ export async function seedIfEmpty(weekStart) {
 }
 
 // Si una semana no tiene los bloques recurrentes, los crea. No duplica.
+//
+// IMPORTANTE: la deduplicación es por `recurring_id`, NO por contenido
+// (día/horario/tarea). Si fuera por contenido, en cuanto alguien edita un bloque
+// fijo (le mueve la hora o le cambia la tarea) dejaría de "coincidir" con su
+// plantilla y esta función lo volvería a crear → bloque duplicado. Atando la
+// identidad al recurring_id, un fijo editado sigue contando como materializado.
 export async function materializeRecurring(weekStart) {
   const recurring = await store.listRecurring();
   const blocks = await store.listBlocks(weekStart);
   const toAdd = [];
   for (const r of recurring) {
     if (!r.active) continue;
-    const exists = blocks.some((b) =>
-      b.day === r.day && b.time_slot === r.time_slot && b.task === r.task);
+    const exists = blocks.some((b) => b.recurring_id === r.id);
     if (!exists) {
       toAdd.push(pick('blocks', {
         week_start: weekStart,
@@ -659,4 +664,29 @@ export async function materializeRecurring(weekStart) {
     }
   }
   if (toAdd.length) await sbInsert('blocks', toAdd);
+}
+
+// Auto-saneo: colapsa duplicados de bloques fijos que el bug viejo dejó en la base.
+// Dos bloques con el MISMO recurring_id en una semana son, por definición, duplicados
+// (materializeRecurring crea uno solo por plantilla). Conserva el editado más
+// reciente (mayor updated_at) y borra el resto. Recibe la lista ya traída para no
+// hacer otro fetch; devuelve la lista limpia y dispara los DELETE en la base.
+// Cuando no hay duplicados (caso normal tras el fix) no toca nada.
+export async function dedupeRecurringInList(blocks) {
+  const byRec = new Map();
+  for (const b of blocks) {
+    if (!b.recurring_id) continue;
+    const arr = byRec.get(b.recurring_id);
+    if (arr) arr.push(b); else byRec.set(b.recurring_id, [b]);
+  }
+  const dropIds = new Set();
+  for (const arr of byRec.values()) {
+    if (arr.length < 2) continue;
+    const ts = (b) => Date.parse(b.updated_at || b.created_at || '') || 0;
+    arr.sort((a, b) => ts(b) - ts(a)); // más reciente primero
+    for (let i = 1; i < arr.length; i++) dropIds.add(arr[i].id);
+  }
+  if (!dropIds.size) return blocks;
+  for (const id of dropIds) await sbDelete('blocks', `id=${eq(id)}`);
+  return blocks.filter((b) => !dropIds.has(b.id));
 }

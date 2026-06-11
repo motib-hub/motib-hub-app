@@ -1,4 +1,4 @@
-import { store, auth, seedIfEmpty, materializeRecurring, ensureCalendarsForRelevantMonths, weeksForMonth, USERS } from './storage.js';
+import { store, auth, seedIfEmpty, materializeRecurring, dedupeRecurringInList, ensureCalendarsForRelevantMonths, weeksForMonth, USERS } from './storage.js';
 
 // ---------- Utilidades ----------
 const DAYS = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes'];
@@ -977,8 +977,8 @@ $postponeConfirm.addEventListener('click', async () => {
     await store.upsertBlock(b);
   }
 
-  // Recargar bloques desde storage
-  state.blocks = await store.listBlocks(state.weekStart);
+  // Recargar bloques desde storage (vía loadWeek para pasar por el saneo de duplicados)
+  await loadWeek();
   closePostponeModal();
   renderSemana();
 
@@ -1237,8 +1237,14 @@ async function shiftWeek(delta) {
   const d = parseISO(state.weekStart);
   d.setDate(d.getDate() + delta);
   state.weekStart = fmtISO(d);
-  await materializeRecurring(state.weekStart);  // si está vacía, crea recurrentes
   await loadWeek();
+  // Solo materializar recurrentes en una semana NUEVA (sin bloques aún). En una
+  // semana ya armada no se re-materializa, para no revivir fijos borrados ni clonar
+  // los editados.
+  if (state.blocks.length === 0) {
+    await materializeRecurring(state.weekStart);
+    await loadWeek();
+  }
   renderSemana();
 }
 
@@ -1411,7 +1417,11 @@ document.getElementById('close-day').addEventListener('click', () => {
 // BOOT
 // ============================================================
 async function loadWeek() {
-  state.blocks = await store.listBlocks(state.weekStart);
+  // dedupeRecurringInList limpia duplicados viejos de bloques fijos sobre la misma
+  // lista ya traída (sin fetch extra) y borra los sobrantes de la base. Tras el fix
+  // de materializeRecurring no se generan nuevos, así que en régimen es un no-op.
+  const blocks = await store.listBlocks(state.weekStart);
+  state.blocks = await dedupeRecurringInList(blocks);
   state.urgents = await store.listUrgents(state.weekStart);
 }
 async function loadCatalogs() {
@@ -1458,8 +1468,10 @@ $gateForm.addEventListener('submit', async (e) => {
 // Carga de datos + identidad. Se llama una vez que hay sesión.
 async function startApp() {
   try {
+    // seedIfEmpty ya materializa los recurrentes cuando la semana está vacía.
+    // NO volver a llamar materializeRecurring acá: en una semana ya armada
+    // revivía los bloques fijos que el usuario había borrado a propósito.
     await seedIfEmpty(state.weekStart);
-    await materializeRecurring(state.weekStart);
     await ensureCalendarsForRelevantMonths();
     await loadCatalogs();
     await loadWeek();
