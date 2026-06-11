@@ -631,6 +631,82 @@ button.danger { color: var(--bad); border-color: var(--bad); background: var(--b
   border-color: var(--accent); background: var(--accent-soft); color: var(--accent);
 }
 
+/* Motivo de postergación dentro del modal */
+.postpone-reason {
+  margin-top: 14px;
+  display: flex; flex-direction: column; gap: 8px;
+  border-top: 1px solid var(--border);
+  padding-top: 14px;
+}
+.postpone-reason .pr-label {
+  font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;
+  color: var(--text-dim); font-weight: 700;
+}
+.postpone-reason .pr-label small {
+  text-transform: none; letter-spacing: 0; font-weight: 600; color: var(--text-dim);
+  opacity: 0.8; margin-left: 4px;
+}
+.pr-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.pr-chips button {
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  padding: 7px 10px;
+  font-size: 13px; font-weight: 600;
+  color: var(--text);
+}
+.pr-chips button:hover { border-color: var(--accent); }
+.pr-chips button.active {
+  border-color: var(--accent); background: var(--accent-soft); color: var(--accent);
+}
+.pr-note {
+  width: 100%; resize: vertical; min-height: 38px;
+  background: var(--surface); border: 1.5px solid var(--border);
+  border-radius: 8px; padding: 8px 10px;
+  font: inherit; font-size: 13px; color: var(--text);
+}
+.pr-note:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+
+/* Etiqueta de motivo en la tarjeta del bloque postergado */
+.block .body .postpone-reason-tag {
+  display: inline-block; margin-top: 5px;
+  font-size: 11px; font-weight: 600;
+  color: var(--text-dim);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 6px; padding: 2px 7px;
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* Carpetas de Drive (pie de la sección Calendarios) */
+.drive-folders {
+  margin-top: 28px; padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+.drive-folders-title {
+  margin: 0 0 12px; font-size: 13px; font-weight: 700;
+  color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px;
+}
+.drive-folders-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px;
+}
+.drive-folder {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--surface); border: 1.5px solid var(--border);
+  border-radius: 10px; padding: 12px 14px;
+  font-size: 14px; font-weight: 600; color: var(--text);
+  text-decoration: none; transition: all 0.15s ease;
+}
+.drive-folder:hover {
+  border-color: var(--accent); background: var(--accent-soft); color: var(--accent-strong);
+  transform: translateY(-1px); box-shadow: var(--shadow);
+}
+.drive-folder.is-empty {
+  opacity: 0.55; cursor: not-allowed; border-style: dashed;
+}
+.drive-folder.is-empty:hover { transform: none; box-shadow: none; background: var(--surface); color: var(--text); border-color: var(--border-strong); }
+.drive-folder.is-empty small { color: var(--text-dim); font-weight: 500; font-size: 11px; }
+
 /* Category chips inside block modal */
 .category-chips {
   display: grid;

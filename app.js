@@ -1,4 +1,14 @@
-import { store, auth, seedIfEmpty, materializeRecurring, dedupeRecurringInList, ensureCalendarsForRelevantMonths, weeksForMonth, USERS } from './storage.js';
+import { store, auth, seedIfEmpty, materializeRecurring, dedupeRecurringInList, ensureCalendarsForRelevantMonths, weeksForMonth, USERS, DRIVE_FOLDERS } from './storage.js';
+
+// Motivos de postergación: clave guardada en DB → etiqueta corta para badges/reportes.
+const POSTPONE_REASONS = {
+  urgente:   '🔥 Urgente',
+  tardo:     '⏳ Tardó más',
+  material:  '🧩 Faltó material',
+  bloqueada: '🚧 Bloqueada',
+  prioridad: '🔀 Otra prioridad',
+  tiempo:    '😴 Sin tiempo',
+};
 
 // ---------- Utilidades ----------
 const DAYS = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes'];
@@ -300,6 +310,9 @@ function blockCard(b) {
       Ver base de ${escapeHtml(client.name)}
     </button>` : '';
   const recBadge = b.recurring_id ? `<span class="recurring-badge">fijo</span>` : '';
+  const reasonHtml = (status === 'postergado' && b.postpone_reason && POSTPONE_REASONS[b.postpone_reason])
+    ? `<span class="postpone-reason-tag" title="${escapeHtml(b.postpone_note || '')}">${POSTPONE_REASONS[b.postpone_reason]}${b.postpone_note ? ' · ' + escapeHtml(b.postpone_note) : ''}</span>`
+    : '';
 
   return `
     <article class="block ${status === 'hecho' ? 'is-done' : ''}" data-id="${b.id}">
@@ -309,6 +322,7 @@ function blockCard(b) {
         <strong>${escapeHtml(b.task || 'Sin tarea')}</strong>
         ${metaLine}
         ${noteHtml}
+        ${reasonHtml}
         ${baseBtn}
       </div>
       <button class="status" data-status="${status}" data-id="${b.id}">
@@ -814,7 +828,19 @@ function renderCalendarios() {
     `;
   }).join('');
 
-  $calendarsContent.innerHTML = alertsHtml + (html || '<div class="empty"><h4>Sin clientes con calendario</h4></div>');
+  // Accesos rápidos a las carpetas de Drive (al pie de la sección).
+  const foldersHtml = `
+    <div class="drive-folders">
+      <h3 class="drive-folders-title">Carpetas de Drive</h3>
+      <div class="drive-folders-grid">
+        ${DRIVE_FOLDERS.map(f => f.url
+          ? `<a class="drive-folder" href="${escapeHtml(f.url)}" target="_blank" rel="noopener noreferrer">📁 ${escapeHtml(f.label)}</a>`
+          : `<span class="drive-folder is-empty" title="Pegá el link en storage.js → DRIVE_FOLDERS">📁 ${escapeHtml(f.label)} <small>(falta link)</small></span>`
+        ).join('')}
+      </div>
+    </div>`;
+
+  $calendarsContent.innerHTML = alertsHtml + (html || '<div class="empty"><h4>Sin clientes con calendario</h4></div>') + foldersHtml;
 
   attachMonthCardHandlers($calendarsContent);
   const banner = document.getElementById('cal-alert-banner');
@@ -833,9 +859,17 @@ const $postponeInfo = document.getElementById('postpone-info');
 const $postponeModes = document.getElementById('postpone-modes');
 const $postponeDetails = document.getElementById('postpone-details');
 const $postponeConfirm = document.getElementById('postpone-confirm');
+const $prChips = document.getElementById('pr-chips');
+const $prNote = document.getElementById('pr-note');
 let postponeBlock = null;
 let postponeMode = null;
 let postponePayload = null; // { newSlot, newDay } según modo
+let postponeReason = null;  // clave en POSTPONE_REASONS (requerida: un toque)
+
+// El Confirmar se habilita solo con modo válido (payload) Y motivo elegido.
+function refreshPostponeConfirm() {
+  $postponeConfirm.disabled = !(postponePayload && postponeReason);
+}
 
 function openPostponeModal(block) {
   postponeBlock = block;
@@ -844,6 +878,9 @@ function openPostponeModal(block) {
   $postponeInfo.textContent = `${block.time_slot} · ${DAY_LABELS[block.day]} · ${block.task}`;
   $postponeModes.querySelectorAll('.pm-btn').forEach(b => b.classList.remove('active'));
   $postponeDetails.innerHTML = '';
+  postponeReason = null;
+  $prChips.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+  $prNote.value = '';
   $postponeConfirm.disabled = true;
   $postponeModal.showModal();
 }
@@ -852,8 +889,18 @@ function closePostponeModal() {
   postponeBlock = null;
   postponeMode = null;
   postponePayload = null;
+  postponeReason = null;
   $postponeModal.close();
 }
+
+// Chips de motivo: elegir uno habilita (junto al modo) el Confirmar.
+$prChips.querySelectorAll('button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    postponeReason = btn.dataset.reason;
+    $prChips.querySelectorAll('button').forEach(b => b.classList.toggle('active', b === btn));
+    refreshPostponeConfirm();
+  });
+});
 
 $postponeModes.querySelectorAll('.pm-btn').forEach(btn => {
   btn.addEventListener('click', () => {
@@ -874,7 +921,7 @@ function renderPostponeDetails() {
     $postponeDetails.innerHTML = `<div class="pd-block"><span class="pd-label">Sin reprogramar</span>
       <div class="text dim">El bloque queda postergado en su lugar original. Decidís cuándo retomarlo.</div></div>`;
     postponePayload = { type: 'no-date' };
-    $postponeConfirm.disabled = false;
+    refreshPostponeConfirm();
     return;
   }
 
@@ -906,7 +953,7 @@ function renderPostponeDetails() {
         document.getElementById('pd-slot-chips').querySelectorAll('button').forEach(x => x.classList.toggle('active', x === b));
         const startMin = parseInt(b.dataset.start, 10);
         postponePayload = { type: 'later-today', newSlot: buildSlot(startMin, durMin) };
-        $postponeConfirm.disabled = false;
+        refreshPostponeConfirm();
       });
     });
     return;
@@ -940,7 +987,7 @@ function renderPostponeDetails() {
             </div>`);
         }
         postponePayload = { type: 'other-day', newDay };
-        $postponeConfirm.disabled = false;
+        refreshPostponeConfirm();
       });
     });
     return;
@@ -948,9 +995,13 @@ function renderPostponeDetails() {
 }
 
 $postponeConfirm.addEventListener('click', async () => {
-  if (!postponeBlock || !postponePayload) return;
+  if (!postponeBlock || !postponePayload || !postponeReason) return;
   const b = postponeBlock;
   let movedCount = 0;
+
+  // Registrar el motivo (y nota opcional) de por qué no se llegó a lo planeado.
+  b.postpone_reason = postponeReason;
+  b.postpone_note = $prNote.value.trim() || null;
 
   if (postponePayload.type === 'no-date') {
     // status ya está 'postergado'; no movemos nada
@@ -1006,6 +1057,9 @@ function showToast(msg) {
 async function setBlockStatusAndClose(newStatus) {
   if (postponeBlock) {
     postponeBlock.status = newStatus;
+    // Volver a pendiente/hecho ⇒ el motivo de postergación deja de aplicar.
+    postponeBlock.postpone_reason = null;
+    postponeBlock.postpone_note = null;
     await store.upsertBlock(postponeBlock);
   }
   closePostponeModal();

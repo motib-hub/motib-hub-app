@@ -207,6 +207,19 @@
 
       <div class="postpone-details" id="postpone-details"></div>
 
+      <div class="postpone-reason" id="postpone-reason">
+        <span class="pr-label">¿Por qué no se llegó? <small>un toque — ayuda a mejorar la semana</small></span>
+        <div class="pr-chips" id="pr-chips">
+          <button type="button" data-reason="urgente">🔥 Se cruzó un urgente</button>
+          <button type="button" data-reason="tardo">⏳ Tardó más de lo previsto</button>
+          <button type="button" data-reason="material">🧩 Faltó material / info</button>
+          <button type="button" data-reason="bloqueada">🚧 Bloqueada por otro</button>
+          <button type="button" data-reason="prioridad">🔀 Prioricé otra cosa</button>
+          <button type="button" data-reason="tiempo">😴 No me alcanzó el tiempo</button>
+        </div>
+        <textarea id="pr-note" class="pr-note" rows="2" placeholder="Detalle opcional…"></textarea>
+      </div>
+
       <div class="modal-actions postpone-actions">
         <button type="button" class="ghost" id="postpone-to-pending">← Pendiente</button>
         <button type="button" class="ghost" id="postpone-to-done">← Hecho</button>

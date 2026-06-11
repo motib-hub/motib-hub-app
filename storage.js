@@ -135,7 +135,7 @@ const eq = (v) => 'eq.' + encodeURIComponent(v);
 // Whitelist de columnas reales por tabla — evita mandar campos extra que
 // PostgREST rechazaría (o que son manejados por la DB, como created_at/updated_at).
 const COLS = {
-  blocks: ['week_start', 'day', 'time_slot', 'client', 'task', 'status', 'note', 'categories', 'recurring_id', 'project_id'],
+  blocks: ['week_start', 'day', 'time_slot', 'client', 'task', 'status', 'note', 'categories', 'recurring_id', 'project_id', 'postpone_reason', 'postpone_note'],
   urgents: ['week_start', 'occurred_at', 'client', 'description', 'estimated_minutes', 'displaces', 'displaced_block_id', 'status'],
   clients: ['id', 'name', 'type', 'color', 'playbook', 'cadence', 'typical_tasks', 'has_monthly_calendar'],
   projects: ['client_id', 'name', 'description', 'status', 'current_week', 'weeks'],
@@ -147,6 +147,20 @@ function pick(table, obj) {
   for (const k of COLS[table]) if (obj[k] !== undefined) out[k] = obj[k];
   return out;
 }
+
+// ============================================================
+// Accesos rápidos a carpetas de Drive (sección Calendarios)
+// ------------------------------------------------------------
+// Pegá acá el link compartido de cada carpeta. Si un url queda vacío, el botón
+// igual aparece pero deshabilitado con el aviso "(falta link)". Hoy se edita
+// acá en código; más adelante se podrá editar desde la app.
+// ============================================================
+export const DRIVE_FOLDERS = [
+  { label: 'Carpeta Maracaibo', url: '' },
+  { label: 'Carpeta Acai Bar',  url: '' },
+  { label: 'Carpeta Motib',     url: '' },
+  { label: 'Carpeta FDV',       url: '' },
+];
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function uid() {
