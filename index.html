@@ -63,6 +63,7 @@
         <button class="section-btn is-active" data-section="semana">Semana</button>
         <button class="section-btn" data-section="calendarios">Calendarios</button>
         <button class="section-btn" data-section="clientes">Clientes</button>
+        <button class="section-btn" data-section="resultados" id="tab-resultados" hidden>Resultados</button>
       </nav>
       <div class="topbar-right">
         <button class="alerts-bell" id="alerts-bell" aria-label="Alertas">
@@ -125,6 +126,19 @@
     <!-- ============ SECCIÓN: CLIENTES ============ -->
     <section class="screen" id="screen-clientes">
       <main class="content" id="clients-content"></main>
+    </section>
+
+    <!-- ============ SECCIÓN: RESULTADOS (solo Tomi) ============ -->
+    <section class="screen" id="screen-resultados">
+      <div class="res-week-strip">
+        <button class="nav-btn" id="res-prev-week" aria-label="Semana anterior">‹</button>
+        <div class="week-label">
+          <span id="res-week-range">—</span>
+          <small>Desglose de Ailén</small>
+        </div>
+        <button class="nav-btn" id="res-next-week" aria-label="Semana siguiente">›</button>
+      </div>
+      <main class="content" id="resultados-content"></main>
     </section>
   </div>
 

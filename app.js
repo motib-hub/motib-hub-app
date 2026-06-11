@@ -675,8 +675,10 @@ function switchSection(section) {
   document.querySelectorAll('.section-btn').forEach(b => b.classList.toggle('is-active', b.dataset.section === section));
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('is-active'));
   document.getElementById('screen-' + section).classList.add('is-active');
+  if (section === 'semana') renderSemana();
   if (section === 'clientes') renderClientes();
   if (section === 'calendarios') renderCalendarios();
+  if (section === 'resultados') renderResultados();
 }
 
 document.getElementById('alerts-bell').addEventListener('click', () => {
@@ -849,6 +851,180 @@ function renderCalendarios() {
     p.hidden = false; renderAlertsPanel();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   });
+}
+
+// ============================================================
+// RESULTADOS · desglose de la semana de Ailén (solo Tomi)
+// ============================================================
+const $resWeekRange = document.getElementById('res-week-range');
+const $resultadosContent = document.getElementById('resultados-content');
+
+// Colores por categoría para las barras de "tipo de trabajo".
+const CAT_COLORS = {
+  edicion: '#ED6A5A', diseno: '#FF7F11', produccion: '#689ABC', planning: '#9b87c4',
+  reunion: '#95CA9A', investigacion: '#e0a458', gestion: '#5b8a8a', pausa: '#c8c5bf', otro: '#9a9aa3',
+};
+
+function fmtDur(min) {
+  min = Math.round(min);
+  const h = Math.floor(min / 60), m = min % 60;
+  if (h && m) return `${h}h ${m}m`;
+  if (h) return `${h}h`;
+  return `${m}m`;
+}
+function blockDurMin(b) {
+  const s = parseSlot(b.time_slot);
+  return s ? Math.max(0, s.end - s.start) : 0;
+}
+// Una barra horizontal con etiqueta + valor.
+function resBarRow(label, value, maxValue, color, valueLabel) {
+  const w = maxValue > 0 ? Math.max(4, Math.round((value / maxValue) * 100)) : 0;
+  return `<div class="res-bar-row">
+    <span class="res-bar-label">${label}</span>
+    <div class="res-bar-track"><div class="res-bar-fill" style="width:${w}%;background:${color}"></div></div>
+    <span class="res-bar-val">${valueLabel}</span>
+  </div>`;
+}
+
+function renderResultados() {
+  const monday = parseISO(state.weekStart);
+  if ($resWeekRange) $resWeekRange.textContent = `Semana del ${fmtRange(monday)}`;
+
+  // Trabajo real = todo menos pausas (almuerzos), para que el cumplimiento sea honesto.
+  const work = state.blocks.filter(b => !getCategories(b).includes('pausa'));
+
+  if (work.length === 0) {
+    $resultadosContent.innerHTML = `<div class="empty"><h4>Sin bloques esta semana</h4>
+      <p>Ailén todavía no cargó nada en esta semana.</p></div>`;
+    return;
+  }
+
+  const buckets = { hecho: [], pendiente: [], postergado: [] };
+  for (const b of work) buckets[normalizeStatus(b.status)].push(b);
+  const total = work.length;
+  const doneCount = buckets.hecho.length;
+  const pendCount = buckets.pendiente.length;
+  const postCount = buckets.postergado.length;
+  const pct = Math.round((doneCount / total) * 100);
+  const plannedMin = work.reduce((a, b) => a + blockDurMin(b), 0);
+  const doneMin = buckets.hecho.reduce((a, b) => a + blockDurMin(b), 0);
+
+  // Carga por cliente (horas planeadas).
+  const byClient = new Map();
+  for (const b of work) {
+    const k = b.client || 'Sin cliente';
+    byClient.set(k, (byClient.get(k) || 0) + blockDurMin(b));
+  }
+  const clientRows = [...byClient.entries()].sort((a, b) => b[1] - a[1]);
+  const maxClient = clientRows.length ? clientRows[0][1] : 0;
+
+  // Carga por tipo de trabajo (categoría).
+  const byCat = new Map();
+  for (const b of work) for (const c of getCategories(b)) {
+    if (c === 'pausa') continue;
+    byCat.set(c, (byCat.get(c) || 0) + blockDurMin(b));
+  }
+  const catRows = [...byCat.entries()].sort((a, b) => b[1] - a[1]);
+  const maxCat = catRows.length ? catRows[0][1] : 0;
+
+  // Motivos de postergación + notas libres.
+  const byReason = new Map();
+  for (const b of buckets.postergado) {
+    if (b.postpone_reason) byReason.set(b.postpone_reason, (byReason.get(b.postpone_reason) || 0) + 1);
+  }
+  const reasonRows = [...byReason.entries()].sort((a, b) => b[1] - a[1]);
+  const maxReason = reasonRows.length ? reasonRows[0][1] : 0;
+  const reasonNotes = buckets.postergado.filter(b => b.postpone_note);
+
+  // Urgentes de la semana.
+  const urg = state.urgents;
+  const urgDisplaced = urg.filter(u => u.displaces).length;
+  const urgMin = urg.reduce((a, u) => a + (u.estimated_minutes || 0), 0);
+
+  // ---- Render ----
+  const hero = `
+    <div class="res-hero">
+      <div class="res-hero-num">${pct}<span>%</span></div>
+      <div class="res-hero-meta">
+        <strong>${doneCount} de ${total} bloques cerrados</strong>
+        <span>${fmtDur(doneMin)} hechas · ${fmtDur(plannedMin)} planeadas</span>
+        <div class="res-hero-bar"><div style="width:${pct}%"></div></div>
+      </div>
+    </div>`;
+
+  const estado = `
+    <div class="res-card">
+      <h3>Estado de los bloques</h3>
+      <div class="res-segbar">
+        <div class="seg done" style="flex:${doneCount}"></div>
+        <div class="seg pend" style="flex:${pendCount}"></div>
+        <div class="seg post" style="flex:${postCount}"></div>
+      </div>
+      <div class="res-legend">
+        <span><i class="dot done"></i> ${doneCount} hechos</span>
+        <span><i class="dot pend"></i> ${pendCount} pendientes</span>
+        <span><i class="dot post"></i> ${postCount} postergados</span>
+      </div>
+    </div>`;
+
+  const motivos = `
+    <div class="res-card">
+      <h3>¿Por qué no se llegó?</h3>
+      ${reasonRows.length === 0
+        ? `<p class="res-empty-inline">Sin postergaciones esta semana 🎉</p>`
+        : reasonRows.map(([r, c]) =>
+            resBarRow(POSTPONE_REASONS[r] || r, c, maxReason, '#b5546b', `${c}`)).join('')}
+      ${reasonNotes.length
+        ? `<div class="res-notes">${reasonNotes.map(b =>
+            `<div class="res-note"><span class="res-note-task">${escapeHtml(b.task)}</span>${escapeHtml(b.postpone_note)}</div>`).join('')}</div>`
+        : ''}
+    </div>`;
+
+  const porCliente = `
+    <div class="res-card">
+      <h3>Dónde fue el tiempo · por cliente</h3>
+      ${clientRows.map(([name, min]) =>
+        resBarRow(escapeHtml(name), min, maxClient, clientByName(name)?.color || '#9a9aa3', fmtDur(min))).join('')}
+    </div>`;
+
+  const porTipo = `
+    <div class="res-card">
+      <h3>Tipo de trabajo</h3>
+      ${catRows.map(([id, min]) => {
+        const c = categoryById(id);
+        const label = c ? `${c.emoji} ${c.label}` : id;
+        return resBarRow(label, min, maxCat, CAT_COLORS[id] || '#9a9aa3', fmtDur(min));
+      }).join('')}
+    </div>`;
+
+  const urgentes = `
+    <div class="res-card">
+      <h3>Urgentes</h3>
+      <div class="res-urg-grid">
+        <div><strong>${urg.length}</strong><span>recibidos</span></div>
+        <div><strong>${urgDisplaced}</strong><span>desplazaron bloques</span></div>
+        <div><strong>${fmtDur(urgMin)}</strong><span>tiempo estimado</span></div>
+      </div>
+    </div>`;
+
+  $resultadosContent.innerHTML = hero + estado + motivos + porCliente + porTipo + urgentes;
+}
+
+async function shiftWeekResultados(delta) {
+  const d = parseISO(state.weekStart);
+  d.setDate(d.getDate() + delta);
+  state.weekStart = fmtISO(d);
+  await loadWeek();
+  renderResultados();
+}
+document.getElementById('res-prev-week').addEventListener('click', () => shiftWeekResultados(-7));
+document.getElementById('res-next-week').addEventListener('click', () => shiftWeekResultados(+7));
+
+// Muestra/oculta el tab Resultados según el usuario (solo quien puede ver la semana de otro).
+function applyUserGating() {
+  const tab = document.getElementById('tab-resultados');
+  if (tab) tab.hidden = !can('viewOthersWeek');
+  if (!can('viewOthersWeek') && state.section === 'resultados') switchSection('semana');
 }
 
 // ============================================================
@@ -1413,6 +1589,7 @@ function pickUser(userId) {
   $onboarding.hidden = true;
   resetPasswordPrompt();
   refreshUserChip();
+  applyUserGating();
   rerenderCurrent();
 }
 
@@ -1420,6 +1597,7 @@ function rerenderCurrent() {
   if (state.section === 'semana') renderSemana();
   else if (state.section === 'clientes') renderClientes();
   else if (state.section === 'calendarios') renderCalendarios();
+  else if (state.section === 'resultados') renderResultados();
   renderAlertsBadge();
 }
 
@@ -1542,6 +1720,7 @@ async function startApp() {
     showOnboarding();
   } else {
     refreshUserChip();
+    applyUserGating();
     renderSemana();
     renderAlertsBadge();
   }
