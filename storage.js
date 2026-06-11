@@ -603,10 +603,15 @@ export async function bootstrapCatalog() {
   // Precargar hashes de password para que getPasswordHash() sea sincrónico.
   await loadPasswordCache();
 
-  // Clientes: los defaults siguen siendo "fuente de verdad" este sprint.
-  // upsert por id en un solo request.
-  const clientRows = DEFAULT_CLIENTS.map((d) => ({ id: d.id, ...pick('clients', d) }));
-  await sbInsert('clients', clientRows, { upsert: true, onConflict: 'id' });
+  // Clientes: sembrar SOLO los que falten. Lo editado desde la app (Tomi/Ailén)
+  // es la fuente de verdad y NO se pisa en cada carga. (Antes se hacía upsert por
+  // id, lo que revertía cualquier edición de playbook/cadence al recargar.)
+  const existingClients = await store.listClients();
+  const haveClientIds = new Set(existingClients.map((c) => c.id));
+  const newClients = DEFAULT_CLIENTS
+    .filter((d) => !haveClientIds.has(d.id))
+    .map((d) => ({ id: d.id, ...pick('clients', d) }));
+  if (newClients.length) await sbInsert('clients', newClients);
 
   // Proyectos: insertar los que falten (dedupe por nombre, preserva los checks).
   const existingProjects = await store.listProjects();
