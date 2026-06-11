@@ -183,7 +183,7 @@ export const USERS = {
     permissions: {
       editOwnWeek: true,
       viewOthersWeek: false,
-      planMonth: false,
+      planMonth: true,            // puede marcar/desmarcar 'planificado' en Calendarios
       markWeekEdited: true,
       editClientPlaybook: false,
       editProjectChecklist: true,
@@ -475,9 +475,9 @@ const DEFAULT_CLIENTS = [
   {
     id: 'cli-maracaibo', name: 'Maracaibo', type: 'cliente', color: '#95CA9A',
     has_monthly_calendar: true,
-    playbook: 'Necesita: edición de stories de Instagram para el MES SIGUIENTE (mes vista). El cliente pasa el material grabado, Ailén edita según calendario mensual. Estructura igual a la documentada en el Notion. En transición durante 2da quincena de mayo.',
-    typical_tasks: ['Edición stories (mes vista)', 'Calendario mensual', 'Coordinación material', 'Contenido Instagram'],
-    cadence: 'Edición de stories del mes siguiente · calendario mensual fijo',
+    playbook: 'Gestión completa de Instagram a partir del 10 de junio — Mili pasa el material grabado. Base diaria: 2 stories/día en Maracaibo y 1 story/día en Acai Bar. Feed Maracaibo: mínimo por semana 2 reels + 1 carrusel o imagen. Acai Bar: 1 posteo por semana, en colaboración con un posteo de Maracaibo. Armado/edición del contenido según calendario mensual (mes vista).',
+    typical_tasks: ['Stories Maracaibo (2/día)', 'Story Acai Bar (1/día)', 'Reels Maracaibo (2/sem)', 'Carrusel o img Maracaibo (1/sem)', 'Colab Acai + Maracaibo (1/sem)', 'Calendario mensual'],
+    cadence: 'Diario: 2 stories Maracaibo + 1 Acai Bar · Semanal: 2 reels + 1 carru/img + 1 colab Acai · gestión completa desde 10/06',
   },
   {
     id: 'cli-spf', name: 'SPF', type: 'cliente', color: '#ED6A5A',
