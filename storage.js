@@ -157,10 +157,10 @@ function pick(table, obj) {
 // acá en código; más adelante se podrá editar desde la app.
 // ============================================================
 export const DRIVE_FOLDERS = [
-  { label: 'Carpeta Maracaibo', url: '' },
-  { label: 'Carpeta Acai Bar',  url: '' },
-  { label: 'Carpeta Motib',     url: '' },
-  { label: 'Carpeta FDV',       url: '' },
+  { label: 'Carpeta Maracaibo', url: 'https://drive.google.com/drive/folders/10Fqbu1lYqo6iCgHeyYC9-2QvsmVw8ze8?usp=drive_link' },
+  { label: 'Carpeta Acai Bar',  url: 'https://drive.google.com/drive/folders/1vgah9etGH0txmclqI7NsFGH1sEfbpYl9?usp=drive_link' },
+  { label: 'Carpeta Motib',     url: 'https://drive.google.com/drive/folders/1N6tHQsiJK93BMGrA3iDAGcXlYKoh5Mag?usp=drive_link' },
+  { label: 'Carpeta FDV',       url: 'https://drive.google.com/drive/folders/1knFBUgNmW0Pv79GXNsTEbKW6yk64KGxE?usp=drive_link' },
 ];
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
